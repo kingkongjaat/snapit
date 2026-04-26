@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+{% block title %}Manage Feedbacks - SnapIt{% endblock %}
+
+{% block content %}
+<div class="container" style="padding-top: 2rem;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 2rem;">
+        <h2><i class="fa-solid fa-comment-dots" style="color:var(--success)"></i> User Feedbacks</h2>
+        <a href="{% url 'snap_settings:admin_dashboard' %}" class="btn btn-ghost btn-sm"><i class="fa-solid fa-arrow-left"></i> Back to Dashboard</a>
+    </div>
+
+    <div class="card">
+        <table style="width: 100%; border-collapse: collapse; text-align: left;">
+            <thead>
+                <tr style="border-bottom: 1px solid var(--border);">
+                    <th style="padding: 1rem; color:var(--text2); width:15%;">Category</th>
+                    <th style="padding: 1rem; color:var(--text2); width:45%;">Message</th>
+                    <th style="padding: 1rem; color:var(--text2); width:20%;">User</th>
+                    <th style="padding: 1rem; color:var(--text2); width:20%;">Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for fb in feedbacks %}
+                <tr style="border-bottom: 1px solid var(--border2); vertical-align: top;">
+                    <td style="padding: 1rem;">
+                        <span style="display:inline-block; padding:.25rem .6rem; background:rgba(255,255,255,0.05); border:1px solid var(--border); font-size:.8rem; border-radius:var(--r-sm);">
+                            {{ fb.get_category_display }}
+                        </span>
+                    </td>
+                    <td style="padding: 1rem;">
+                        <strong style="display:block; font-size:1rem; margin-bottom:.3rem;">{{ fb.subject }}</strong>
+                        <div style="font-size: .9rem; color:var(--text2); line-height:1.5;">{{ fb.message }}</div>
+                    </td>
+                    <td style="padding: 1rem;">
+                        <a href="{% url 'users:profile' fb.user.username %}">{{ fb.user.username }}</a>
+                    </td>
+                    <td style="padding: 1rem; color:var(--text3); font-size:.85rem;">
+                        {{ fb.created_at|date:"M d, Y H:i" }}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4" style="padding: 2rem; text-align:center; color:var(--text3);">No feedbacks found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

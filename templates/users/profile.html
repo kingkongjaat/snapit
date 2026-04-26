@@ -1,0 +1,205 @@
+{% extends 'base.html' %}
+{% block title %}{{ profile_user.username }} – SnapIt{% endblock %}
+
+{% block content %}
+<div style="max-width:820px;margin:0 auto" data-username="{{ profile_user.username }}">
+
+  <!-- Cover -->
+  {% if profile_user.cover_photo %}
+    <img src="{{ profile_user.cover_photo.url }}" class="profile-cover" alt="Cover">
+  {% else %}
+    <div class="profile-cover"></div>
+  {% endif %}
+
+  <div class="profile-card">
+    <div style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:1rem">
+      <div>
+        <div class="status-dot-wrap profile-avatar-wrap">
+          {% if profile_user.avatar %}
+            <img src="{{ profile_user.avatar.url }}" class="profile-avatar" alt="{{ profile_user.username }}">
+          {% else %}
+            <div class="profile-avatar-fallback">{{ profile_user.username.0|upper }}</div>
+          {% endif %}
+          <span class="status-dot {% if profile_user.is_online %}{% if profile_user.is_superuser %}admin{% else %}online{% endif %}{% endif %}" style="width:18px;height:18px;bottom:4px;right:4px;border-width:3px"></span>
+        </div>
+        <h1 style="font-size:1.6rem;font-weight:800;margin-bottom:.2rem">
+          {{ profile_user.username }}
+          {% if profile_user.is_online %}
+            <span class="badge badge-success" style="font-size:.7rem;vertical-align:middle;margin-left:.4rem"><i class="fa-solid fa-circle"></i> Online</span>
+          {% endif %}
+        </h1>
+        {% if profile_user.first_name or profile_user.last_name %}
+          <p style="color:var(--text2);font-size:.95rem;margin-bottom:.5rem">{{ profile_user.first_name }} {{ profile_user.last_name }}</p>
+        {% endif %}
+        {% if profile_user.bio %}
+          <p style="color:var(--text2);font-size:.9rem;max-width:480px;line-height:1.5;margin-bottom:.75rem">{{ profile_user.bio }}</p>
+        {% endif %}
+        <div style="display:flex;flex-wrap:wrap;gap:1rem;font-size:.85rem;color:var(--text3)">
+          {% if profile_user.location %}<span><i class="fa-solid fa-location-dot"></i> {{ profile_user.location }}</span>{% endif %}
+          {% if profile_user.website %}<a href="{{ profile_user.website }}" target="_blank" rel="noopener"><i class="fa-solid fa-link"></i> {{ profile_user.website }}</a>{% endif %}
+          <span><i class="fa-regular fa-calendar"></i> Joined {{ profile_user.date_joined|date:"M Y" }}</span>
+        </div>
+      </div>
+      <div class="profile-actions">
+        {% if user.is_authenticated and user != profile_user %}
+          <button id="followBtn" data-username="{{ profile_user.username }}" class="btn {% if is_following %}btn-outline{% else %}btn-primary{% endif %}">
+            <i class="fa-solid {% if is_following %}fa-user-minus{% else %}fa-user-plus{% endif %}"></i>
+            {% if is_following %}Unfollow{% else %}Follow{% endif %}
+          </button>
+          <a href="{% url 'messaging:conversation' profile_user.username %}" class="btn btn-ghost"><i class="fa-solid fa-envelope"></i> Message</a>
+          <button class="btn btn-ghost btn-sm" onclick="openReportModal('{{ profile_user.username }}', null)"><i class="fa-solid fa-flag"></i></button>
+        {% elif user == profile_user %}
+          <a href="{% url 'users:edit_profile' %}" class="btn btn-ghost"><i class="fa-solid fa-pen-to-square"></i> Edit Profile</a>
+          <a href="{% url 'snap_settings:settings' %}" class="btn btn-ghost"><i class="fa-solid fa-gear"></i></a>
+        {% endif %}
+        <button class="btn btn-ghost btn-sm" onclick="shareProfile('{{ profile_user.username }}')" title="Share profile"><i class="fa-solid fa-share-nodes"></i></button>
+      </div>
+    </div>
+
+    <!-- Clickable Stats Tabs -->
+    <div class="profile-stats">
+      <button class="profile-stat tab-stat active" data-tab="posts" onclick="switchTab('posts')">
+        <strong id="post-count">{{ posts.count }}</strong><span>Posts</span>
+      </button>
+      <button class="profile-stat tab-stat" data-tab="followers" onclick="switchTab('followers')">
+        <strong id="follower-count">{{ profile_user.followers.count }}</strong><span>Followers</span>
+      </button>
+      <button class="profile-stat tab-stat" data-tab="following" onclick="switchTab('following')">
+        <strong>{{ profile_user.following.count }}</strong><span>Following</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Posts Tab -->
+  <div id="tab-posts" class="profile-tab-panel">
+    {% for post in posts %}
+    <article class="post-card" style="margin-bottom:1.25rem">
+      <div class="post-header">
+        <div class="post-meta-row" style="padding-top:.25rem">
+          <span>{{ post.created_at|timesince }} ago</span>
+          <span class="privacy-chip">
+            {% if post.privacy == 'public' %}<i class="fa-solid fa-globe"></i>{% elif post.privacy == 'private' %}<i class="fa-solid fa-lock"></i>{% else %}<i class="fa-solid fa-user-group"></i>{% endif %}
+            {{ post.get_privacy_display }}
+          </span>
+          <button class="action-btn btn-ghost btn-sm" style="margin-left:auto;padding:.3rem .6rem" onclick="sharePost({{ post.id }})"><i class="fa-solid fa-share-nodes"></i></button>
+          {% if user.is_authenticated and user != profile_user %}
+          <button class="action-btn btn-ghost btn-sm" style="padding:.3rem .6rem;color:var(--text3)" onclick="openReportModal('{{ profile_user.username }}', {{ post.id }})"><i class="fa-solid fa-flag"></i></button>
+          {% endif %}
+        </div>
+      </div>
+      <div class="post-body">
+        {% if post.content %}<p class="post-text">{{ post.content }}</p>{% endif %}
+        {% if post.media %}
+        <div class="post-media" style="margin-top:.75rem">
+          {% if post.media.url|lower|slice:"-4:" == ".mp4" %}<video src="{{ post.media.url }}" controls></video>
+          {% else %}<img src="{{ post.media.url }}" alt="">{% endif %}
+        </div>
+        {% endif %}
+      </div>
+      <div class="post-actions">
+        <span style="font-size:.85rem;color:var(--text3)"><i class="fa-solid fa-heart" style="color:var(--danger)"></i> {{ post.likes.count }}</span>
+        <span style="font-size:.85rem;color:var(--text3);margin-left:.75rem"><i class="fa-regular fa-comment" style="color:var(--p)"></i> {{ post.comments.count }}</span>
+      </div>
+    </article>
+    {% empty %}
+    <div class="empty-state card"><i class="fa-solid fa-pen-nib"></i><h3>No posts yet</h3><p>{{ profile_user.username }} hasn't shared anything.</p></div>
+    {% endfor %}
+  </div>
+
+  <!-- Followers Tab -->
+  <div id="tab-followers" class="profile-tab-panel" style="display:none">
+    <div class="card" id="followers-list">
+      <div class="spinner" style="margin:2rem auto"></div>
+    </div>
+  </div>
+
+  <!-- Following Tab -->
+  <div id="tab-following" class="profile-tab-panel" style="display:none">
+    <div class="card" id="following-list">
+      <div class="spinner" style="margin:2rem auto"></div>
+    </div>
+  </div>
+</div>
+
+
+
+{% block extra_js %}
+<script>
+const profileUsername = "{{ profile_user.username }}";
+let _reportTarget = { username: null, postId: null };
+let _followersLoaded = false;
+let _followingLoaded = false;
+
+// Tab switching
+function switchTab(tab) {
+  document.querySelectorAll('.tab-stat').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.profile-tab-panel').forEach(p => p.style.display = 'none');
+  document.querySelector(`[data-tab="${tab}"]`)?.classList.add('active');
+  document.getElementById(`tab-${tab}`).style.display = 'block';
+
+  if (tab === 'followers' && !_followersLoaded) loadUserList('followers');
+  if (tab === 'following' && !_followingLoaded) loadUserList('following');
+}
+
+async function loadUserList(type) {
+  const container = document.getElementById(`${type}-list`);
+  const res = await fetch(`/users/profile/${profileUsername}/${type}/`);
+  const data = await res.json();
+  if (data.users.length === 0) {
+    container.innerHTML = `<div class="empty-state"><i class="fa-solid fa-users"></i><h3>No ${type} yet</h3></div>`;
+    return;
+  }
+  container.innerHTML = data.users.map(u => `
+    <div style="display:flex;align-items:center;gap:.85rem;padding:.8rem 0;border-bottom:1px solid var(--border)">
+      <div class="status-dot-wrap">
+        ${u.avatar ? `<img src="${u.avatar}" class="avatar" width="44" height="44">` : `<div class="avatar-fallback" style="width:44px;height:44px;font-size:1rem">${u.username[0].toUpperCase()}</div>`}
+        <span class="status-dot ${u.is_online ? 'online' : ''}"></span>
+      </div>
+      <div style="flex:1">
+        <a href="/users/profile/${u.username}/" style="font-weight:600;color:var(--text);font-size:.95rem">${u.username}</a>
+        ${u.is_online ? '<div style="font-size:.75rem;color:var(--success)">● Online</div>' : ''}
+      </div>
+      <a href="/users/profile/${u.username}/" class="btn btn-ghost btn-sm">View</a>
+    </div>`).join('');
+  container.lastElementChild.style.borderBottom = 'none';
+  if (type === 'followers') _followersLoaded = true;
+  else _followingLoaded = true;
+}
+
+// Share
+function shareProfile(username) {
+  const url = `${location.origin}/users/profile/${username}/`;
+  if (navigator.share) {
+    navigator.share({ title: `${username} on SnapIt`, url });
+  } else {
+    navigator.clipboard.writeText(url).then(() => showToast('Profile link copied!'));
+  }
+}
+
+function sharePost(postId) {
+  const url = `${location.origin}/posts/${postId}/`;
+  if (navigator.share) {
+    navigator.share({ title: 'Check this post on SnapIt', url });
+  } else {
+    navigator.clipboard.writeText(url).then(() => showToast('Post link copied!'));
+  }
+}
+
+function showToast(msg) {
+  const t = document.createElement('div');
+  t.className = 'toast toast-success';
+  t.innerHTML = `<i class="fa-solid fa-circle-check"></i> ${msg} <button onclick="this.parentElement.remove()"><i class="fa-solid fa-xmark"></i></button>`;
+  let tc = document.getElementById('toastContainer');
+  if (!tc) {
+    tc = document.createElement('div');
+    tc.className = 'toast-container';
+    tc.id = 'toastContainer';
+    document.body.appendChild(tc);
+  }
+  tc.appendChild(t);
+  setTimeout(() => t.remove(), 4000);
+}
+
+</script>
+{% endblock %}
+{% endblock %}

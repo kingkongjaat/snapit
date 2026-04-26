@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+{% block title %}Messages – SnapIt{% endblock %}
+
+{% block content %}
+<div class="messages-layout">
+
+  <!-- Sidebar -->
+  <aside class="msg-sidebar">
+    <div class="msg-sidebar-header">
+      <h2>Messages</h2>
+      <a href="/" class="btn btn-ghost btn-sm"><i class="fa-solid fa-compose"></i><i class="fa-solid fa-pen-to-square"></i></a>
+    </div>
+    {% for item in conv_data %}
+    {% with item.other as other %}
+    <a href="{% url 'messaging:conversation' other.username %}" class="conv-item">
+      <div class="status-dot-wrap">
+        {% if other.avatar %}<img src="{{ other.avatar.url }}" class="avatar" width="46" height="46">
+        {% else %}<div class="avatar-fallback" style="width:46px;height:46px;font-size:1.1rem">{{ other.username.0|upper }}</div>{% endif %}
+        <span class="status-dot {% if other.is_online %}{% if other.is_superuser %}admin{% else %}online{% endif %}{% endif %}"></span>
+      </div>
+      <div class="conv-meta">
+        <div class="conv-name">{{ other.username }}{% if item.unread %}<span class="msg-badge">{{ item.unread }}</span>{% endif %}</div>
+        <div class="conv-preview">{% if item.last_msg %}{{ item.last_msg.content|truncatechars:38 }}{% else %}No messages yet{% endif %}</div>
+      </div>
+    </a>
+    {% endwith %}
+    {% empty %}
+    <div style="padding:2rem;text-align:center;color:var(--text3);font-size:.9rem">No conversations yet.<br>Go to a profile and message someone!</div>
+    {% endfor %}
+  </aside>
+
+  <!-- Empty state for inbox view -->
+  <div class="msg-main msg-empty-state">
+    <i class="fa-solid fa-comments" style="font-size:3rem;color:var(--border2);display:block;margin-bottom:1rem"></i>
+    <h3>Select a conversation</h3>
+    <p style="color:var(--text2);margin-top:.5rem">Choose from your existing conversations or start a new one.</p>
+  </div>
+</div>
+{% endblock %}

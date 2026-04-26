@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+{% block title %}Admin Dashboard - SnapIt{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 900px; padding-top: 2rem;">
+    <h2 style="margin-bottom: 1.5rem;"><i class="fa-solid fa-shield-halved" style="color:var(--p)"></i> Admin Portal</h2>
+    
+    <div style="display:flex; gap: 1rem; margin-bottom: 2rem;">
+        <div class="card" style="flex:1; text-align:center; padding: 2rem;">
+            <i class="fa-solid fa-triangle-exclamation" style="font-size:2rem; color:var(--warn); margin-bottom:.5rem;"></i>
+            <h3>{{ reports_pending }}</h3>
+            <p style="color:var(--text2)">Pending Reports</p>
+        </div>
+        <div class="card" style="flex:1; text-align:center; padding: 2rem;">
+            <i class="fa-solid fa-comment-dots" style="font-size:2rem; color:var(--success); margin-bottom:.5rem;"></i>
+            <h3>{{ feedbacks_count }}</h3>
+            <p style="color:var(--text2)">Total Feedbacks</p>
+        </div>
+        <div class="card" style="flex:1; text-align:center; padding: 2rem;">
+            <i class="fa-solid fa-user-slash" style="font-size:2rem; color:var(--danger); margin-bottom:.5rem;"></i>
+            <h3>{{ banned_users }}</h3>
+            <p style="color:var(--text2)">Banned Users (Scheduled)</p>
+        </div>
+    </div>
+    
+    <div style="display:flex; gap: 1.5rem;">
+        <div class="card" style="flex: 2;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1rem;">
+                <h3 style="font-size: 1.1rem;">Recent Reports</h3>
+                <a href="{% url 'snap_settings:admin_reports' %}" class="btn btn-sm btn-ghost">View All</a>
+            </div>
+            {% if recent_reports %}
+            <div style="display:flex; flex-direction:column; gap: .75rem;">
+                {% for report in recent_reports %}
+                <div style="padding: 1rem; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface2);">
+                    <div style="display:flex; justify-content:space-between;">
+                        <strong><i class="fa-solid fa-circle-exclamation" style="color:var(--danger)"></i> {{ report.get_reason_display }}</strong>
+                        <span style="font-size:.8rem; color:var(--text3)">{{ report.created_at|date:"M d, Y" }}</span>
+                    </div>
+                    <div style="margin-top:.5rem; font-size:.9rem; color:var(--text2);">
+                        Reported User: <strong><a href="{% url 'users:profile' report.reported_user.username %}">{{ report.reported_user.username }}</a></strong>
+                    </div>
+                    {% if not report.resolved %}
+                    <span style="display:inline-block; margin-top:.5rem; padding:.2rem .5rem; background:rgba(251, 146, 60, 0.2); color:var(--warn); font-size:.75rem; border-radius:var(--r-sm);">Pending</span>
+                    {% else %}
+                    <span style="display:inline-block; margin-top:.5rem; padding:.2rem .5rem; background:rgba(52, 211, 153, 0.2); color:var(--success); font-size:.75rem; border-radius:var(--r-sm);">Resolved</span>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p style="color:var(--text3);">No recent reports.</p>
+            {% endif %}
+        </div>
+        
+        <div class="card" style="flex: 1;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1rem;">
+                <h3 style="font-size: 1.1rem;">Recent Feedback</h3>
+                <a href="{% url 'snap_settings:admin_feedbacks' %}" class="btn btn-sm btn-ghost">All</a>
+            </div>
+            {% if recent_feedbacks %}
+            <div style="display:flex; flex-direction:column; gap: .75rem;">
+                {% for fb in recent_feedbacks %}
+                <div style="padding: .75rem; border-bottom: 1px solid var(--border);">
+                    <strong style="display:block; font-size:.95rem;">{{ fb.subject }}</strong>
+                    <span style="font-size:.8rem; color:var(--text3);">by {{ fb.user.username }}</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p style="color:var(--text3);">No recent feedback.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

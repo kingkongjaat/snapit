@@ -1,0 +1,148 @@
+{% extends 'base.html' %}
+{% block title %}{{ other_user.username }} – Messages – SnapIt{% endblock %}
+
+{% block content %}
+<div class="messages-layout">
+
+  <!-- Sidebar -->
+  <aside class="msg-sidebar">
+    <div class="msg-sidebar-header">
+      <h2>Messages</h2>
+    </div>
+    {% for item in conv_data %}
+    {% with item.other as other %}
+    <a href="{% url 'messaging:conversation' other.username %}" class="conv-item {% if other.username == other_user.username %}active{% endif %}">
+      <div class="status-dot-wrap">
+        {% if other.avatar %}<img src="{{ other.avatar.url }}" class="avatar" width="46" height="46">
+        {% else %}<div class="avatar-fallback" style="width:46px;height:46px;font-size:1.1rem">{{ other.username.0|upper }}</div>{% endif %}
+        <span class="status-dot {% if other.is_online %}{% if other.is_superuser %}admin{% else %}online{% endif %}{% endif %}"></span>
+      </div>
+      <div class="conv-meta">
+        <div class="conv-name">{{ other.username }}{% if item.unread %}<span class="msg-badge">{{ item.unread }}</span>{% endif %}</div>
+        <div class="conv-preview">{% if item.last_msg %}{{ item.last_msg.content|truncatechars:36 }}{% else %}Start a conversation{% endif %}</div>
+      </div>
+    </a>
+    {% endwith %}
+    {% empty %}
+    <div style="padding:1.5rem;text-align:center;color:var(--text3);font-size:.88rem">No conversations</div>
+    {% endfor %}
+  </aside>
+
+  <!-- Conversation -->
+  <div class="msg-main">
+    <!-- Header -->
+    <div class="msg-header">
+      <div class="status-dot-wrap">
+        {% if other_user.avatar %}<img src="{{ other_user.avatar.url }}" class="avatar" width="42" height="42">
+        {% else %}<div class="avatar-fallback" style="width:42px;height:42px;font-size:1rem">{{ other_user.username.0|upper }}</div>{% endif %}
+        <span class="status-dot {% if other_user.is_online %}{% if other_user.is_superuser %}admin{% else %}online{% endif %}{% endif %}" style="width:11px;height:11px"></span>
+      </div>
+      <div>
+        <a href="{% url 'users:profile' other_user.username %}" class="msg-header-name">{{ other_user.username }}</a>
+        <div class="msg-header-status">{% if other_user.is_online %}<span style="color:var(--success)">● Online</span>{% else %}Last seen {{ other_user.last_seen|timesince }} ago{% endif %}</div>
+      </div>
+      <a href="{% url 'users:profile' other_user.username %}" class="btn btn-ghost btn-sm" style="margin-left:auto"><i class="fa-solid fa-user"></i> Profile</a>
+    </div>
+
+    <!-- Messages -->
+    <div class="msg-body" id="msgBody">
+      {% for msg in chat_messages %}
+        <div class="msg-bubble-wrap {% if msg.sender == request.user %}sent{% else %}recv{% endif %}">
+          {% if msg.sender != request.user %}
+          {% if msg.sender.avatar %}<img src="{{ msg.sender.avatar.url }}" class="avatar" width="30" height="30">
+          {% else %}<div class="avatar-fallback" style="width:30px;height:30px;font-size:.72rem">{{ msg.sender.username.0|upper }}</div>{% endif %}
+          {% endif %}
+          <div class="msg-bubble">{{ msg.content }}</div>
+        </div>
+        <div class="msg-time {% if msg.sender == request.user %}sent{% endif %}" style="text-align:{% if msg.sender == request.user %}right{% else %}left{% endif %};padding: 0 .5rem .25rem;">{{ msg.created_at|date:"H:i" }}</div>
+
+      {% empty %}
+        <div class="msg-empty">
+          <i class="fa-solid fa-paper-plane" style="font-size:2.5rem;color:var(--border2);display:block;margin-bottom:.75rem"></i>
+          Send a message to start the conversation!
+        </div>
+      {% endfor %}
+    </div>
+
+    <!-- Input -->
+    <form class="msg-input-bar" id="msgForm" data-conv="{{ conv.id }}">
+      {% csrf_token %}
+      <input type="text" id="msgInput" class="msg-input" placeholder="Type a message..." autocomplete="off">
+      <button type="button" class="msg-emoji-btn" id="emojiBtn"><i class="fa-regular fa-face-smile"></i></button>
+      <button type="submit" class="msg-send-btn"><i class="fa-solid fa-paper-plane"></i></button>
+    </form>
+  </div>
+</div>
+
+{% block extra_js %}
+<script type="module">
+import 'https://cdn.jsdelivr.net/npm/emoji-picker-element@^1/index.js';
+
+const msgBody = document.getElementById('msgBody');
+const msgForm = document.getElementById('msgForm');
+const msgInput = document.getElementById('msgInput');
+const convId = msgForm.dataset.conv;
+const myUsername = "{{ request.user.username }}";
+
+// Scroll to bottom
+msgBody.scrollTop = msgBody.scrollHeight;
+
+msgForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const content = msgInput.value.trim();
+  if (!content) return;
+  msgInput.value = '';
+
+  const res = await fetch(`/messages/send/${convId}/`, {
+    method: 'POST',
+    headers: { 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ content })
+  });
+  const data = await res.json();
+  if (data.success) {
+    const m = data.message;
+    msgBody.insertAdjacentHTML('beforeend', `
+      <div class="msg-bubble-wrap sent" style="animation:slideUp .2s ease">
+        <div class="msg-bubble">${m.content}</div>
+      </div>
+      <div class="msg-time" style="text-align:right;padding:0 .5rem .25rem">${m.created_at}</div>`);
+    msgBody.scrollTop = msgBody.scrollHeight;
+  }
+});
+
+// Proper Emoji Picker
+const emojiBtn = document.getElementById('emojiBtn');
+let picker = null;
+
+emojiBtn.addEventListener('click', (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+
+  if (picker) {
+    picker.remove();
+    picker = null;
+    return;
+  }
+
+  picker = document.createElement('emoji-picker');
+  picker.style.cssText = 'position:absolute;bottom:70px;right:1rem;z-index:100;--num-columns:8;--emoji-size:1.5rem;--background:var(--bg2);--border-color:var(--border2);--button-hover-background:var(--bg3);--indicator-color:var(--primary);box-shadow:0 8px 24px rgba(0,0,0,0.15);border-radius:var(--r-lg);font-family: inherit;';
+  
+  const inputBar = document.querySelector('.msg-input-bar');
+  inputBar.style.position = 'relative';
+  inputBar.appendChild(picker);
+
+  picker.addEventListener('emoji-click', event => {
+    msgInput.value += event.detail.unicode;
+    msgInput.focus();
+  });
+});
+
+document.addEventListener('click', (e) => {
+  if (picker && e.target !== picker && !picker.contains(e.target) && e.target !== emojiBtn && !emojiBtn.contains(e.target)) {
+    picker.remove();
+    picker = null;
+  }
+});
+</script>
+{% endblock %}
+{% endblock %}

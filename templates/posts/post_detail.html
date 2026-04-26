@@ -1,0 +1,145 @@
+{% extends 'base.html' %}
+{% block title %}Post by {{ post.author.username }} - SnapIt{% endblock %}
+
+{% block content %}
+<div style="max-width:680px;margin:0 auto;">
+  <div style="margin-bottom:1.5rem">
+    <a href="/" class="btn btn-ghost btn-sm"><i class="fa-solid fa-arrow-left"></i> Back to Feed</a>
+  </div>
+
+  <article class="post-card" style="margin-bottom:2rem">
+    <div class="post-header">
+      <div class="status-dot-wrap" style="flex-shrink:0" onclick="window.location.href='/users/profile/{{ post.author.username }}/'" style="cursor:pointer">
+        {% if post.author.avatar %}<img src="{{ post.author.avatar.url }}" class="avatar" width="46" height="46">
+        {% else %}<div class="avatar-fallback" style="width:46px;height:46px;font-size:1.1rem">{{ post.author.username.0|upper }}</div>{% endif %}
+        <span class="status-dot {% if post.author.is_online %}{% if post.author.is_superuser %}admin{% else %}online{% endif %}{% endif %}"></span>
+      </div>
+      <div class="post-meta" style="flex:1">
+        <a href="/users/profile/{{ post.author.username }}/" class="post-author">{{ post.author.username }}</a>
+        <div class="post-meta-row">
+          <span>{{ post.created_at|timesince }} ago</span>
+          <span class="privacy-chip">
+            {% if post.privacy == 'public' %}<i class="fa-solid fa-globe"></i>{% elif post.privacy == 'private' %}<i class="fa-solid fa-lock"></i>{% else %}<i class="fa-solid fa-user-group"></i>{% endif %}
+            {{ post.get_privacy_display }}
+          </span>
+        </div>
+      </div>
+      <div class="post-options">
+        <button class="action-btn" onclick="openShareModal({{ post.id }})"><i class="fa-solid fa-share-nodes"></i></button>
+        {% if user.is_authenticated and user != post.author %}
+        <button class="action-btn" style="color:var(--warn)" onclick="openReportModal('{{ post.author.username }}', {{ post.id }})"><i class="fa-solid fa-flag"></i></button>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Body -->
+    <div class="post-body">
+      {% if post.content %}<p class="post-text">{{ post.content|urlize }}</p>{% endif %}
+      {% if post.media %}
+      <div class="post-media" style="margin-bottom:1rem">
+        {% if post.media.url|lower|slice:"-4:" == ".mp4" %}<video src="{{ post.media.url }}" controls></video>
+        {% else %}<img src="{{ post.media.url }}" alt="">{% endif %}
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Likers preview -->
+    {% if post.likes.count > 0 %}
+    <div class="post-likers">
+      <div class="likers-avatars" id="liker-bar-{{ post.id }}">
+        {% for liker in post.likes.all|slice:":6" %}
+          {% if liker.user.avatar %}<img src="{{ liker.user.avatar.url }}" class="mini-avatar" title="{{ liker.user.username }}">
+          {% else %}<div class="mini-avatar">{{ liker.user.username.0|upper }}</div>{% endif %}
+        {% endfor %}
+      </div>
+      <span class="like-count-link" onclick="openLikersModal({{ post.id }})">
+        {{ post.likes.count }} like{{ post.likes.count|pluralize }}
+      </span>
+    </div>
+    {% endif %}
+
+    <!-- Actions -->
+    <div class="post-actions">
+      <button class="action-btn like-btn {% if user_liked %}liked{% endif %}" data-post="{{ post.id }}">
+        <i class="{% if user_liked %}fa-solid{% else %}fa-regular{% endif %} fa-heart"></i>
+        <span class="likes-count">{{ post.likes.count }}</span>
+      </button>
+      <button class="action-btn comment-toggle-btn" data-post="{{ post.id }}">
+        <i class="fa-regular fa-comment"></i>
+        <span class="comments-count">{{ post.comments.count }}</span>
+      </button>
+    </div>
+
+    <!-- Comments -->
+    <div class="comments-area open" id="comments-area-{{ post.id }}">
+      {% if user.is_authenticated %}
+      <div class="comment-composer">
+        {% if user.avatar %}<img src="{{ user.avatar.url }}" class="avatar" width="34" height="34">
+        {% else %}<div class="avatar-fallback" style="width:34px;height:34px;font-size:.85rem">{{ user.username.0|upper }}</div>{% endif %}
+        <form class="comment-form" data-post="{{ post.id }}" style="display:flex;gap:.5rem;flex:1">
+          <input type="text" class="comment-input-field" placeholder="Write a comment... (use @username to tag)">
+          <button type="submit" class="comment-submit-btn"><i class="fa-solid fa-paper-plane"></i></button>
+        </form>
+      </div>
+      {% endif %}
+
+      <div class="comments-list" id="comment-list-{{ post.id }}">
+        {% for comment in top_comments %}
+        <div class="comment-item" id="comment-{{ comment.id }}">
+          <div class="status-dot-wrap">
+            {% if comment.author.avatar %}<img src="{{ comment.author.avatar.url }}" class="avatar" width="34" height="34">
+            {% else %}<div class="avatar-fallback" style="width:34px;height:34px;font-size:.85rem">{{ comment.author.username.0|upper }}</div>{% endif %}
+            <span class="status-dot {% if comment.author.is_online %}online{% endif %}"></span>
+          </div>
+          <div style="flex:1">
+            <div class="comment-bubble">
+              <div class="comment-author">
+                <a href="/users/profile/{{ comment.author.username }}/" style="color:var(--text)"><strong>{{ comment.author.username }}</strong></a>
+                <span>{{ comment.created_at|timesince }} ago</span>
+              </div>
+              <div class="comment-text">{{ comment.content|safe }}</div>
+            </div>
+            
+            <div class="comment-actions">
+              <button class="btn-link" onclick="toggleCommentLike(this, {{ comment.id }})">
+                <i class="fa-regular fa-heart"></i> <span>{{ comment.likes.count }}</span>
+              </button>
+              <button class="btn-link" style="margin-left:1rem" onclick="toggleReplyBox({{ comment.id }})">Reply</button>
+            </div>
+
+            <!-- Reply composer -->
+            <div class="reply-composer" id="reply-composer-{{ comment.id }}">
+              <form class="comment-form" data-post="{{ post.id }}" data-parent="{{ comment.id }}" style="display:flex;gap:.5rem;flex:1">
+                <input type="text" class="comment-input-field" placeholder="Reply to {{ comment.author.username }}...">
+                <button type="submit" class="comment-submit-btn"><i class="fa-solid fa-paper-plane"></i></button>
+              </form>
+            </div>
+
+            <!-- Replies -->
+            <div class="replies" id="replies-{{ comment.id }}">
+              {% for reply in comment.replies.all %}
+              <div class="reply-item comment-item">
+                <div class="status-dot-wrap">
+                  {% if reply.author.avatar %}<img src="{{ reply.author.avatar.url }}" class="avatar" width="30" height="30">
+                  {% else %}<div class="avatar-fallback" style="width:30px;height:30px;font-size:.75rem">{{ reply.author.username.0|upper }}</div>{% endif %}
+                  <span class="status-dot {% if reply.author.is_online %}online{% endif %}"></span>
+                </div>
+                <div class="reply-bubble">
+                  <div class="comment-author">
+                    <a href="/users/profile/{{ reply.author.username }}/" style="color:var(--text)"><strong>{{ reply.author.username }}</strong></a>
+                    <span>{{ reply.created_at|timesince }} ago</span>
+                  </div>
+                  <div class="comment-text">{{ reply.content|safe }}</div>
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+            
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </article>
+</div>
+{% endblock %}

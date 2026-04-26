@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+{% block title %}Notifications – SnapIt{% endblock %}
+
+{% block content %}
+<div style="max-width:680px;margin:0 auto;">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem">
+    <h1 style="font-size:1.5rem;font-weight:800"><i class="fa-solid fa-bell" style="color:var(--p)"></i> Notifications</h1>
+    <button class="btn btn-ghost btn-sm" id="markAllReadBtn"><i class="fa-solid fa-check-double"></i> Mark all read</button>
+  </div>
+
+  {% if notifications %}
+  {% for notif in notifications %}
+  {% with type=notif.notification_type %}
+  <a href="{% url 'notifications:redirect_notification' notif.id %}"
+     class="notif-item {% if not notif.is_read %}unread{% endif %}"
+     style="display:flex;border:1px solid var(--border);border-radius:var(--r-lg);margin-bottom:.75rem;text-decoration:none;color:var(--text)">
+    <div style="position:relative;flex-shrink:0;padding:.9rem 0 .9rem 1.25rem">
+      {% if notif.sender.avatar %}
+        <img src="{{ notif.sender.avatar.url }}" class="avatar" width="46" height="46">
+      {% else %}
+        <div class="avatar-fallback" style="width:46px;height:46px;font-size:1.1rem">{{ notif.sender.username.0|upper }}</div>
+      {% endif %}
+      <span style="position:absolute;bottom:10px;right:-4px;width:18px;height:18px;border-radius:50%;border:2px solid var(--bg2);display:flex;align-items:center;justify-content:center;
+        background:{% if type == 'like' %}#f43f5e{% elif type == 'follow' %}#34d399{% elif type == 'comment' or type == 'reply' %}#818cf8{% else %}#fb923c{% endif %}">
+        <i class="fa-solid {% if type == 'like' %}fa-heart{% elif type == 'follow' %}fa-user-plus{% elif type == 'reply' %}fa-reply{% elif type == 'mention' or type == 'comment_mention' %}fa-at{% else %}fa-comment{% endif %}" style="font-size:.5rem;color:white"></i>
+      </span>
+    </div>
+    <div style="padding:.9rem 1.25rem;flex:1">
+      <div style="font-size:.92rem;line-height:1.4">
+        <strong>{{ notif.sender.username }}</strong> {{ notif.get_message }}
+      </div>
+      <div style="font-size:.75rem;color:var(--text3);margin-top:.3rem">{{ notif.created_at|timesince }} ago</div>
+    </div>
+    {% if not notif.is_read %}
+    <div style="display:flex;align-items:center;padding-right:1.25rem">
+      <span style="width:8px;height:8px;border-radius:50%;background:var(--p);flex-shrink:0"></span>
+    </div>
+    {% endif %}
+  </a>
+  {% endwith %}
+  {% endfor %}
+  {% else %}
+  <div class="empty-state card">
+    <i class="fa-solid fa-bell-slash"></i>
+    <h3>All caught up!</h3>
+    <p>No notifications yet. Start engaging with the community!</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

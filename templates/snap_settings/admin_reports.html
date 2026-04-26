@@ -1,0 +1,118 @@
+{% extends 'base.html' %}
+{% block title %}Manage Reports - SnapIt{% endblock %}
+
+{% block content %}
+<div class="container" style="padding-top: 2rem;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 2rem;">
+        <h2><i class="fa-solid fa-flag" style="color:var(--danger)"></i> Manage Reports</h2>
+        <a href="{% url 'snap_settings:admin_dashboard' %}" class="btn btn-ghost btn-sm"><i class="fa-solid fa-arrow-left"></i> Back to Dashboard</a>
+    </div>
+
+    <div class="card">
+        <div style="margin-bottom: 1.5rem; display:flex; gap: 1rem;">
+            <a href="?status=pending" class="btn btn-sm {% if filter_status == 'pending' %}btn-primary{% else %}btn-ghost{% endif %}">Pending</a>
+            <a href="?status=resolved" class="btn btn-sm {% if filter_status == 'resolved' %}btn-primary{% else %}btn-ghost{% endif %}">Resolved</a>
+            <a href="?status=all" class="btn btn-sm {% if filter_status == 'all' %}btn-primary{% else %}btn-ghost{% endif %}">All</a>
+        </div>
+        
+        <table style="width: 100%; border-collapse: collapse; text-align: left;">
+            <thead>
+                <tr style="border-bottom: 1px solid var(--border);">
+                    <th style="padding: 1rem; color:var(--text2);">Report Info</th>
+                    <th style="padding: 1rem; color:var(--text2);">Reported User</th>
+                    <th style="padding: 1rem; color:var(--text2);">Reporter</th>
+                    <th style="padding: 1rem; color:var(--text2);">Status</th>
+                    <th style="padding: 1rem; color:var(--text2);">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for report in reports %}
+                <tr style="border-bottom: 1px solid var(--border2);">
+                    <td style="padding: 1rem;">
+                        <strong>{{ report.get_reason_display }}</strong><br>
+                        <span style="font-size:.85rem; color:var(--text3);">{{ report.created_at|date:"M d, Y H:i" }}</span><br>
+                        <div style="font-size: .85rem; color:var(--text2); margin-top:.4rem; max-width: 250px;">{{ report.description|truncatechars:80 }}</div>
+                    </td>
+                    <td style="padding: 1rem;">
+                        {% if report.reported_user %}
+                        <a href="{% url 'users:profile' report.reported_user.username %}" style="font-weight:600;">{{ report.reported_user.username }}</a>
+                        {% if not report.reported_user.is_active %}<span style="color:var(--danger); font-size:.75rem;">(Banned)</span>{% endif %}
+                        {% else %}
+                        <em>N/A</em>
+                        {% endif %}
+                    </td>
+                    <td style="padding: 1rem;">
+                        <a href="{% url 'users:profile' report.reporter.username %}">{{ report.reporter.username }}</a>
+                    </td>
+                    <td style="padding: 1rem;">
+                        {% if report.resolved %}
+                        <span style="padding:.25rem .6rem; background:rgba(52, 211, 153, 0.2); color:var(--success); font-size:.8rem; border-radius:var(--r-sm);">Resolved</span>
+                        {% else %}
+                        <span style="padding:.25rem .6rem; background:rgba(251, 146, 60, 0.2); color:var(--warn); font-size:.8rem; border-radius:var(--r-sm);">Pending</span>
+                        {% endif %}
+                    </td>
+                    <td style="padding: 1rem;">
+                        <div style="display:flex; gap: .5rem; flex-wrap: wrap;">
+                            {% if not report.resolved %}
+                            <form method="POST" action="{% url 'snap_settings:admin_resolve_report' report.id %}">
+                                {% csrf_token %}
+                                <button class="btn btn-sm" style="background:var(--success); color:white; border:none;" title="Mark Resolved"><i class="fa-solid fa-check"></i></button>
+                            </form>
+                            {% endif %}
+                            
+                            {% if report.reported_user and report.reported_user.is_active %}
+                            <button class="btn btn-sm btn-ghost" style="color:var(--warn); border-color:var(--warn);" onclick="openWarnModal({{ report.reported_user.id }}, '{{ report.reported_user.username }}', {{ report.id }})" title="Warn User">
+                                <i class="fa-solid fa-triangle-exclamation"></i> Warn
+                            </button>
+                            
+                            <form method="POST" action="{% url 'snap_settings:admin_ban_user' report.reported_user.id %}" onsubmit="return confirm('Are you sure you want to deactivate and schedule {{ report.reported_user.username }} for deletion?');">
+                                {% csrf_token %}
+                                <button class="btn btn-sm" style="background:var(--danger); color:white; border:none;" title="Ban User"><i class="fa-solid fa-ban"></i> Ban</button>
+                            </form>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" style="padding: 2rem; text-align:center; color:var(--text3);">No reports found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Warn Modal -->
+<div class="modal-overlay" id="warnModal" style="display:none; z-index:2000;">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3 style="color:var(--warn)"><i class="fa-solid fa-triangle-exclamation"></i> Warn User: <span id="warnUsername"></span></h3>
+      <button class="modal-close" onclick="closeWarnModal()"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <form id="warnForm" method="POST" action="">
+        {% csrf_token %}
+        <input type="hidden" name="report_id" id="warnReportId">
+        <div class="form-group">
+          <label class="form-label">Warning Reason (sent via direct message)</label>
+          <textarea name="reason" class="form-control" rows="4" required placeholder="Describe the violation here..."></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width:100%"><i class="fa-solid fa-paper-plane"></i> Send Warning</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+function openWarnModal(userId, username, reportId) {
+    document.getElementById('warnUsername').innerText = username;
+    document.getElementById('warnReportId').value = reportId;
+    document.getElementById('warnForm').action = "/settings/admin-portal/users/" + userId + "/warn/";
+    document.getElementById('warnModal').style.display = 'flex';
+}
+function closeWarnModal() {
+    document.getElementById('warnModal').style.display = 'none';
+}
+</script>
+{% endblock %}

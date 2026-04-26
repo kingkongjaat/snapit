@@ -1,0 +1,16 @@
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Virtual Environment
+venv/
+env/
+
+# Environment variables (NEVER COMMIT THIS)
+.env
+
+# Database (Contains user data, passwords, etc.)
+db.sqlite3
+
+# Media uploads (User profile pictures, post images, etc.)
+media/

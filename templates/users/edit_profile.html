@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+{% block title %}Edit Profile – SnapIt{% endblock %}
+
+{% block content %}
+<div style="max-width: 640px; margin: 0 auto;">
+  <div style="margin-bottom:1.5rem">
+    <h1 style="font-size:1.5rem;font-weight:800">Edit Profile</h1>
+    <p style="color:var(--text2);margin-top:.25rem">Update your public information</p>
+  </div>
+
+  <form method="POST" enctype="multipart/form-data" class="card">
+    {% csrf_token %}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+      <div class="form-group">
+        <label class="form-label">First Name</label>
+        {{ form.first_name }}
+      </div>
+      <div class="form-group">
+        <label class="form-label">Last Name</label>
+        {{ form.last_name }}
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Username</label>
+      {{ form.username }}
+    </div>
+    <div class="form-group">
+      <label class="form-label">Email</label>
+      {{ form.email }}
+    </div>
+    <div class="form-group">
+      <label class="form-label">Bio</label>
+      {{ form.bio }}
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+      <div class="form-group">
+        <label class="form-label"><i class="fa-solid fa-location-dot"></i> Location</label>
+        {{ form.location }}
+      </div>
+      <div class="form-group">
+        <label class="form-label"><i class="fa-solid fa-link"></i> Website</label>
+        {{ form.website }}
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+      <div class="form-group">
+        <label class="form-label"><i class="fa-solid fa-user-circle"></i> Avatar</label>
+        {{ form.avatar }}
+        {% if user.avatar %}
+        <div style="margin-top:.5rem"><img src="{{ user.avatar.url }}" width="60" height="60" style="border-radius:50%;object-fit:cover;border:2px solid var(--border2)"></div>
+        {% endif %}
+      </div>
+      <div class="form-group">
+        <label class="form-label"><i class="fa-solid fa-panorama"></i> Cover Photo</label>
+        {{ form.cover_photo }}
+      </div>
+    </div>
+
+    {% for field in form %}
+      {% for error in field.errors %}
+      <div style="color:var(--danger);font-size:.85rem;margin-bottom:.5rem"><i class="fa-solid fa-triangle-exclamation"></i> {{ field.label }}: {{ error }}</div>
+      {% endfor %}
+    {% endfor %}
+
+    <div style="display:flex;gap:1rem;margin-top:.5rem">
+      <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk"></i> Save Changes</button>
+      <a href="{% url 'users:profile' user.username %}" class="btn btn-ghost">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

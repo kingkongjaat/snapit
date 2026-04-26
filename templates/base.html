@@ -1,0 +1,175 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}SnapIt{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+{% if user.is_authenticated %}<form id="csrf-holder" style="display:none">{% csrf_token %}</form>{% endif %}
+
+<!-- ══════════ NAVBAR ══════════ -->
+<nav class="navbar">
+    <div class="nav-inner">
+        <a href="/" class="brand"><div class="brand-icon"><i class="fa-solid fa-bolt-lightning"></i></div> SnapIt</a>
+
+        <div class="nav-search">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="text" placeholder="Search SnapIt..." id="globalSearch" autocomplete="off">
+            <div class="search-results" id="searchResults"></div>
+        </div>
+
+        <div class="nav-actions">
+            {% if user.is_authenticated %}
+            <!-- Theme toggle -->
+            <button class="nav-icon-btn" id="themeToggleBtn" title="Toggle theme" onclick="toggleTheme()">
+                <i class="fa-solid fa-moon" id="themeIcon"></i>
+            </button>
+
+            <!-- Messages -->
+            <a href="{% url 'messaging:inbox' %}" class="nav-icon-btn" title="Messages" style="position:relative">
+                <i class="fa-solid fa-envelope"></i>
+                <span class="notif-badge" id="msg-badge" style="display:none"></span>
+            </a>
+
+            <!-- Notifications Bell -->
+            <div style="position:relative">
+                <button class="nav-icon-btn" id="notif-bell-link" title="Notifications">
+                    <i class="fa-solid fa-bell"></i>
+                    <span class="notif-badge" id="notif-badge" style="display:none"></span>
+                </button>
+                <div class="notif-dropdown" id="notifDropdown">
+                    <div class="notif-header">
+                        <h4>Notifications</h4>
+                        <button class="btn-link" id="markAllReadBtn">Mark all read</button>
+                    </div>
+                    <div class="notif-list" id="notifList"><div class="notif-empty">Loading...</div></div>
+                    <a href="{% url 'notifications:list' %}" class="notif-footer">View all notifications</a>
+                </div>
+            </div>
+
+            <!-- User Menu -->
+            <div class="user-menu" id="userMenuTrigger" style="position:relative">
+                {% if user.avatar %}<img src="{{ user.avatar.url }}" alt="{{ user.username }}" class="nav-avatar">
+                {% else %}<div class="nav-avatar-fallback">{{ user.username.0|upper }}</div>{% endif %}
+                <span class="online-dot"></span>
+                <div class="dropdown-menu" id="userDropdown">
+                    <div class="dropdown-header">
+                        <strong>{{ user.username }}</strong>
+                        <small>{{ user.email }}</small>
+                    </div>
+                    <a href="{% url 'users:profile' user.username %}"><i class="fa-solid fa-user"></i> Profile</a>
+                    <a href="{% url 'users:edit_profile' %}"><i class="fa-solid fa-pen-to-square"></i> Edit Profile</a>
+                    <a href="{% url 'messaging:inbox' %}"><i class="fa-solid fa-envelope"></i> Messages</a>
+                    <a href="{% url 'snap_settings:settings' %}"><i class="fa-solid fa-gear"></i> Settings</a>
+                    {% if user.is_superuser or user.username == 'Snapit' %}
+                    <div class="dropdown-divider"></div>
+                    <a href="{% url 'snap_settings:admin_dashboard' %}" style="color:var(--warn)"><i class="fa-solid fa-shield-halved"></i> Admin Portal</a>
+                    {% endif %}
+                    <div class="dropdown-divider"></div>
+                    <form method="POST" action="{% url 'users:logout' %}">
+                        {% csrf_token %}
+                        <button type="submit" class="dropdown-logout"><i class="fa-solid fa-right-from-bracket"></i> Log Out</button>
+                    </form>
+                </div>
+            </div>
+            {% else %}
+            <button class="nav-icon-btn" onclick="toggleTheme()" title="Toggle theme"><i class="fa-solid fa-moon" id="themeIcon"></i></button>
+            <a href="{% url 'users:login' %}" class="btn btn-ghost">Log In</a>
+            <a href="{% url 'users:register' %}" class="btn btn-primary">Sign Up</a>
+            {% endif %}
+        </div>
+    </div>
+</nav>
+
+<!-- Who Liked Modal -->
+<div class="modal-overlay" id="likersModal" style="display:none">
+    <div class="modal-box">
+        <div class="modal-header">
+            <h3><i class="fa-solid fa-heart" style="color:var(--danger)"></i> Liked by</h3>
+            <button class="modal-close" onclick="closeLikersModal()"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="modal-body" id="likersList"><div class="spinner"></div></div>
+    </div>
+</div>
+
+<!-- Share Modal -->
+<div class="modal-overlay" id="shareModal" style="display:none">
+    <div class="modal-box" style="max-width:380px">
+        <div class="modal-header">
+            <h3><i class="fa-solid fa-share-nodes" style="color:var(--p)"></i> Share Post</h3>
+            <button class="modal-close" onclick="document.getElementById('shareModal').style.display='none'"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="modal-body" style="padding-bottom:1.5rem">
+            <div class="share-url-box">
+                <input id="shareUrlInput" class="form-control" readonly>
+                <button class="btn btn-primary btn-sm" onclick="copyShareUrl()"><i class="fa-solid fa-copy"></i> Copy</button>
+            </div>
+            <div style="margin-top:1.25rem">
+                <p style="font-size:.85rem;color:var(--text2);margin-bottom:.75rem">Share on</p>
+                <div style="display:flex;gap:.75rem;flex-wrap:wrap" id="sharePlatforms"></div>
+            </div>
+        </div>
+        </div>
+    </div>
+</div>
+
+<!-- Report Modal -->
+<div class="modal-overlay" id="reportModal" style="display:none">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3><i class="fa-solid fa-flag" style="color:var(--danger)"></i> Report</h3>
+      <button class="modal-close" onclick="closeReportModal()"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <p style="color:var(--text2);font-size:.9rem;margin-bottom:1rem">Help us understand what's wrong with this content.</p>
+      <div class="form-group">
+        <label class="form-label">Reason</label>
+        <select class="form-control" id="reportReason">
+          <option value="spam">🚫 Spam</option>
+          <option value="abuse">⚠️ Abusive Content</option>
+          <option value="harassment">😡 Harassment</option>
+          <option value="inappropriate">🔞 Inappropriate Material</option>
+          <option value="misinformation">❗ Misinformation</option>
+          <option value="other">📌 Other</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Additional Details (optional)</label>
+        <textarea class="form-control" id="reportDesc" rows="3" placeholder="Describe the issue..."></textarea>
+      </div>
+      <button class="btn btn-danger" style="width:100%" onclick="submitReport()"><i class="fa-solid fa-paper-plane"></i> Submit Report</button>
+    </div>
+  </div>
+</div>
+
+<main class="main-content">
+    <div class="container">
+        {% if messages %}
+        <div class="toast-container" id="toastContainer">
+            {% for message in messages %}
+            <div class="toast {% if message.tags %}toast-{{ message.tags }}{% endif %}">
+                <i class="fa-solid fa-circle-check"></i> {{ message }}
+                <button onclick="this.parentElement.remove()"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% block content %}{% endblock %}
+    </div>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
+<script src="{% static 'js/main.js' %}"></script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>
